@@ -1,0 +1,83 @@
+// OpenCode configuration for the AI Job Search framework.
+//
+// This repo is Claude Code-native (see AGENTS.md). This file is the
+// OpenCode-side adapter: it mirrors the security posture of
+// .claude/settings.json and loads OPENCODE.md, which maps Claude Code
+// tool names onto OpenCode's. See OPENCODE.md for the full explanation.
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // CLAUDE.md = the candidate profile (Claude Code loads it as memory, so we
+  // load it as an instruction too). OPENCODE.md = the adapter notes.
+  "instructions": ["CLAUDE.md", "OPENCODE.md"],
+
+  // Rules are ordered; the LAST matching rule wins.
+  // Broad rules first, exceptions after.
+  "permissions": [
+    // ── 1. Baseline: everything allowed unless a later rule says otherwise ──
+    { "action": "*", "resource": "*", "effect": "allow" },
+
+    // ── 2. Never read secrets (mirrors ".claude/settings.json" -> deny) ──
+    { "action": "read", "resource": "*.env", "effect": "deny" },
+    { "action": "read", "resource": "*.env.*", "effect": "deny" },
+    { "action": "read", "resource": "~/.ssh/**", "effect": "deny" },
+    { "action": "read", "resource": "~/.aws/**", "effect": "deny" },
+    { "action": "read", "resource": "~/.gnupg/**", "effect": "deny" },
+
+    // ── 3. Ask before editing framework / CI files (mirrors "ask") ──
+    { "action": "edit", "resource": ".claude/settings.json", "effect": "ask" },
+    { "action": "edit", "resource": ".claude/settings.local.json", "effect": "ask" },
+    { "action": "edit", "resource": ".claude/skills/*/SKILL.md", "effect": "ask" },
+    { "action": "edit", "resource": ".claude/commands/*.md", "effect": "ask" },
+    { "action": "edit", "resource": ".claude/agents/**", "effect": "ask" },
+    { "action": "edit", "resource": ".github/**", "effect": "ask" },
+    { "action": "edit", "resource": "tools/security_guards.py", "effect": "ask" },
+
+    // ── 4. Shell asks by default. This mirrors Claude Code, which prompts for
+    //       any Bash command that is not on its allow list -- important in a
+    //       repo whose whole job is handling untrusted job postings. ──
+    { "action": "shell", "resource": "*", "effect": "ask" },
+
+    // ── 5. Standing allow list (mirrors ".claude/settings.json" -> allow).
+    //       A pattern ending in " *" also matches the bare command. ──
+    // Job-portal CLIs. The wildcard covers any portal added later with
+    // /add-portal, matching upstream's per-portal intent without a config edit.
+    { "action": "shell", "resource": "bun run .agents/skills/*/cli/src/cli.ts *", "effect": "allow" },
+    { "action": "shell", "resource": "bun install *", "effect": "allow" },
+    { "action": "shell", "resource": "bun test *", "effect": "allow" },
+    { "action": "shell", "resource": "bun --version", "effect": "allow" },
+    // Framework tools. Add new tools/entries here as they appear.
+    { "action": "shell", "resource": "python salary_lookup.py *", "effect": "allow" },
+    { "action": "shell", "resource": "python3 salary_lookup.py *", "effect": "allow" },
+    { "action": "shell", "resource": "python tools/*.py *", "effect": "allow" },
+    { "action": "shell", "resource": "python3 tools/*.py *", "effect": "allow" },
+    { "action": "shell", "resource": "pdftotext *", "effect": "allow" },
+    // LaTeX compiles. Not on upstream's list, but /apply runs them every time,
+    // so pre-approving them removes the only recurring prompt in the core flow.
+    { "action": "shell", "resource": "lualatex *", "effect": "allow" },
+    { "action": "shell", "resource": "xelatex *", "effect": "allow" },
+    { "action": "shell", "resource": "pdflatex *", "effect": "allow" },
+
+    // ── 6. Hard denials last so nothing above can re-allow them.
+    //       (Belt and braces: these would otherwise merely "ask".) ──
+    { "action": "shell", "resource": "curl -d*", "effect": "deny" },
+    { "action": "shell", "resource": "curl --data*", "effect": "deny" },
+    { "action": "shell", "resource": "curl -F*", "effect": "deny" },
+    { "action": "shell", "resource": "curl --form*", "effect": "deny" },
+    { "action": "shell", "resource": "curl -T*", "effect": "deny" },
+    { "action": "shell", "resource": "curl --upload-file*", "effect": "deny" },
+    { "action": "shell", "resource": "curl -X POST*", "effect": "deny" },
+    { "action": "shell", "resource": "curl -X PUT*", "effect": "deny" },
+    { "action": "shell", "resource": "curl -XPOST*", "effect": "deny" },
+    { "action": "shell", "resource": "curl --request POST*", "effect": "deny" },
+    { "action": "shell", "resource": "wget --post-data*", "effect": "deny" },
+    { "action": "shell", "resource": "wget --post-file*", "effect": "deny" },
+    { "action": "shell", "resource": "wget --method=POST*", "effect": "deny" },
+    { "action": "shell", "resource": "scp *", "effect": "deny" },
+    { "action": "shell", "resource": "sftp *", "effect": "deny" },
+    { "action": "shell", "resource": "ssh *", "effect": "deny" },
+    { "action": "shell", "resource": "nc *", "effect": "deny" },
+    { "action": "shell", "resource": "ncat *", "effect": "deny" },
+    { "action": "shell", "resource": "netcat *", "effect": "deny" }
+  ]
+}
